@@ -3,6 +3,8 @@ import pathlib
 import numpy as np
 from numpy._typing import NDArray
 
+# import tensorflow as tf
+
 
 def load_array2D(path: str, float_type):
     """
@@ -47,6 +49,22 @@ def save_row_matrix(y: NDArray, path: str):
         np.savetxt(path, y, delimiter=' ', newline=' ', fmt='%G')
     elif extension == '.npy':
         y = np.squeeze(y, axis=0)
+        np.save(path, y)
+    else:
+        raise Exception('File extension must be .txt or .npy')
+
+
+def squeeze_and_save_tensor(y: NDArray, path: str):
+    """
+    :param y: A vector represented as a (1, 1, ..., n, 1, ..., 1 ) TensorFlow tensor,
+                where n = number of entries of the intended output vector
+    :param path: Full path of a text file containing the data
+    """
+    extension = pathlib.Path(path).suffix
+    y = np.squeeze(y)
+    if extension == '.txt':
+        np.savetxt(path, y, delimiter=' ', newline=' ', fmt='%G')
+    elif extension == '.npy':
         np.save(path, y)
     else:
         raise Exception('File extension must be .txt or .npy')
