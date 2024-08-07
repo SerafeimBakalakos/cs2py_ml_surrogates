@@ -47,13 +47,15 @@ def run_main_script_body(settings: dict, durations: dict):
 
 if __name__ == '__main__':
     # For testing:
-    # import sys
-    # # path_settings = "C:\\Users\\Serafeim\\Desktop\\AISolve\\CantileverDynamicLinear\\testing_python\\predict_cs2py_settings.json"
-    # # path_results = "C:\\Users\\Serafeim\\Desktop\\AISolve\\CantileverDynamicLinear\\testing_python\\predict_py2cs_results.json"
-    # # path_results = "C:\\Users\\Serafeim\\Desktop\\AISolve\\CantileverDynamicLinear\\testing_python\\predict_py2cs_log.json"
-    # path_settings = "C:\\Users\\Serafeim\\Desktop\\AISolve\\CantileverDynamicLinear\\2024-8-6-122_d328438b-6f5c-47c4-ad0b-58b296cd8011_cs2py_settings.json"
-    # path_results = "C:\\Users\\Serafeim\\Desktop\\AISolve\\CantileverDynamicLinear\\2024-8-6-122_d328438b-6f5c-47c4-ad0b-58b296cd8011_py2cs_results.json"
-    # path_log = "C:\\Users\\Serafeim\\Desktop\\AISolve\\CantileverDynamicLinear\\2024-8-6-122_d328438b-6f5c-47c4-ad0b-58b296cd8011_py2cs_log.json"
+    import sys
+    # work_directory = "C:\\Users\\Serafeim\\Desktop\\AISolve\\CantileverDynamicLinear\\testing_python"
+    # work_directory = "C:\\Users\\cluster\\Desktop\\Serafeim\\results\\CantileverDynamicLinear"
+    # path_settings = work_directory + "\\predict_cs2py_settings.json"
+    # path_results = work_directory + "\\predict_py2cs_results.json"
+    # path_log = work_directory + "\\predict_py2cs_log.json"
+    # path_settings = work_directory + "\\2024-8-6-122_d328438b-6f5c-47c4-ad0b-58b296cd8011_cs2py_settings.json"
+    # path_results = work_directory + "\\2024-8-6-122_d328438b-6f5c-47c4-ad0b-58b296cd8011_py2cs_results.json"
+    # path_log = work_directory + "\\2024-8-6-122_d328438b-6f5c-47c4-ad0b-58b296cd8011_py2cs_log.json"
     # sys.argv = [sys.argv[0]] + [path_settings, path_results, path_log]
 
     # Actual script
