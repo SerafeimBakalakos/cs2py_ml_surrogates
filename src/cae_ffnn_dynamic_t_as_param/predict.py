@@ -1,14 +1,14 @@
-import numpy as np
+import time
 
+import numpy as np
 import tensorflow as tf
 
-from timeit import default_timer as timer
 from src.my_utilities import arrayIO, csharp_interop
 
 
 def run_main_script_body(settings: dict, durations: dict):
     # Read and apply TensorFlow settings
-    start = timer()
+    start = time.time_ns()
     path_model_params = settings["ModelParamsPath"]
     path_solution_vector = settings["SolutionVectorPath"]
     path_model_decoder = settings["ModelDecoderPath"]
@@ -19,38 +19,43 @@ def run_main_script_body(settings: dict, durations: dict):
         tf.keras.backend.set_floatx('float64')
     np_dtype = np.double if use_float64 is True else np.single
 
-    elapsed = timer() - start
-    durations["setup"] = durations["setup"] + elapsed
+    elapsed = (time.time_ns() - start) // 1000000 # in ms
+    durations["Setup"] = durations["Setup"] + elapsed
 
 
     # Load model and input array
-    start = timer()
+    start = time.time_ns()
     decoder_model = tf.keras.models.load_model(path_model_decoder)
     ffnn_model = tf.keras.models.load_model(path_model_ffnn)
     x = arrayIO.load_row_matrix(path_model_params, np_dtype)
-    elapsed = timer() - start
+    elapsed = (time.time_ns() - start) // 1000000 # in ms
     durations["IO"] = durations["IO"] + elapsed
 
     # Use model to predict
-    start = timer()
+    start = time.time_ns()
     temp = ffnn_model.predict(x)
     y = decoder_model.predict(temp)
-    elapsed = timer() - start
-    durations["actual"] = durations["actual"] + elapsed
+    elapsed = (time.time_ns() - start) // 1000000 # in ms
+    durations["Actual"] = durations["Actual"] + elapsed
 
     # Save output array
-    start = timer()
+    start = time.time_ns()
     arrayIO.squeeze_and_save_tensor(y, path_solution_vector)
-    elapsed = timer() - start
+    elapsed = (time.time_ns() - start) // 1000000 # in ms
     durations["IO"] = durations["IO"] + elapsed
 
 
 if __name__ == '__main__':
     # For testing:
     # import sys
-    # path_settings = "C:\\Users\\Serafeim\\Desktop\\AISolve\\CantileverDynamicLinear\\testing_python\\predict_cs2py_settings.json"
-    # path_results = "C:\\Users\\Serafeim\\Desktop\\AISolve\\CantileverDynamicLinear\\testing_python\\predict_py2cs_results.json"
-    # sys.argv = [sys.argv[0]] + [path_settings, path_results]
+    # # path_settings = "C:\\Users\\Serafeim\\Desktop\\AISolve\\CantileverDynamicLinear\\testing_python\\predict_cs2py_settings.json"
+    # # path_results = "C:\\Users\\Serafeim\\Desktop\\AISolve\\CantileverDynamicLinear\\testing_python\\predict_py2cs_results.json"
+    # # path_results = "C:\\Users\\Serafeim\\Desktop\\AISolve\\CantileverDynamicLinear\\testing_python\\predict_py2cs_log.json"
+    # path_settings = "C:\\Users\\Serafeim\\Desktop\\AISolve\\CantileverDynamicLinear\\2024-8-6-122_d328438b-6f5c-47c4-ad0b-58b296cd8011_cs2py_settings.json"
+    # path_results = "C:\\Users\\Serafeim\\Desktop\\AISolve\\CantileverDynamicLinear\\2024-8-6-122_d328438b-6f5c-47c4-ad0b-58b296cd8011_py2cs_results.json"
+    # path_log = "C:\\Users\\Serafeim\\Desktop\\AISolve\\CantileverDynamicLinear\\2024-8-6-122_d328438b-6f5c-47c4-ad0b-58b296cd8011_py2cs_log.json"
+    # sys.argv = [sys.argv[0]] + [path_settings, path_results, path_log]
 
     # Actual script
     csharp_interop.call_csharp_script(run_main_script_body)
+

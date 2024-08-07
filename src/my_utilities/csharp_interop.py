@@ -1,31 +1,32 @@
 import sys
 import traceback
 import json
+import time
 
 from contextlib import redirect_stdout
-from timeit import default_timer as timer
 
 
 def call_csharp_script(func):
     try:
-        start = timer()
+        start = time.time_ns()
         path_settings = sys.argv[1]
         path_results = sys.argv[2]
-        durations = {"IO": 0, "setup": 0, "actual": 0}
+        path_log = sys.argv[3]
+        durations = {"IO": 0, "Setup": 0, "Actual": 0}
 
-        with open(path_results, 'w') as file_results:
-            file_results.write("")
-            with redirect_stdout(file_results):
+        with open(path_log, 'w') as file_log:
+            file_log.write("")
+            with redirect_stdout(file_log):
                 with open(path_settings) as file_settings:
                     settings = json.load(file_settings)
-                    elapsed = timer() - start
+                    elapsed = (time.time_ns() - start) // 1000000 # in ms
                     durations["IO"] = elapsed
                     func(settings, durations)
-        with open(path_settings, 'w') as file_settings:
-            json.dump(durations, file_settings)
+        with open(path_results, 'w') as file_results:
+            json.dump(durations, file_results)
     except:  # this catches everything, unlike 'except Exception as ex'
-        with open(path_results, 'w') as f:
-            traceback.print_exc(file=f)
+        with open(path_log, 'w') as file_log:
+            traceback.print_exc(file=file_log)
         sys.exit(100)
     else:
         sys.exit(0)

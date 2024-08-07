@@ -1,8 +1,8 @@
-import numpy as np
+import time
 
+import numpy as np
 import tensorflow as tf
 
-from timeit import default_timer as timer
 from src.my_utilities import arrayIO, read_keras_network, csharp_interop
 
 
@@ -49,7 +49,7 @@ def print_to_file(filepath: str, msg: str):
 
 def run_main_script_body(settings: dict, durations: dict):
     # Read and apply TensorFlow settings
-    start = timer()
+    start = time.time_ns()
     print("Reading surrogate parameters")
     tf_seed = settings["TensorFlowSeed"]
     if tf_seed != -1:
@@ -66,11 +66,11 @@ def run_main_script_body(settings: dict, durations: dict):
     path_model_decoder = settings["ModelDecoderPath"]
     path_model_ffnn = settings["ModelFfnnPath"]
 
-    elapsed = timer() - start
-    durations["setup"] = durations["setup"] + elapsed
+    elapsed = (time.time_ns() - start) // 1000000 # in ms
+    durations["Setup"] = durations["Setup"] + elapsed
 
     # Load input arrays
-    start = timer()
+    start = time.time_ns()
     print("Loading training data")
     train_model_params = arrayIO.load_array2D(path_train_model_params, np_dtype)
     train_solutions = arrayIO.load_array2D(path_train_solution_vectors, np_dtype)
@@ -83,24 +83,24 @@ def run_main_script_body(settings: dict, durations: dict):
     decoder_model = read_keras_network.create_model_sequential(model_architecture["DecoderLayers"])
     ffnn_model = read_keras_network.create_model_sequential(model_architecture["FfnnLayers"])
 
-    elapsed = timer() - start
+    elapsed = (time.time_ns() - start) // 1000000 # in ms
     durations["IO"] = durations["IO"] + elapsed
 
     # Train CAE and FFNN models
-    start = timer()
+    start = time.time_ns()
     print("***** Training CAE *****")
     cae_history = train_cae(model_architecture, encoder_model, decoder_model, train_solutions)
     print("***** Training FFNN *****")
     ffnn_history = train_ffnn(model_architecture, ffnn_model, encoder_model, train_model_params, train_solutions)
 
-    elapsed = timer() - start
-    durations["actual"] = durations["actual"] + elapsed
+    elapsed = (time.time_ns() - start) // 1000000 # in ms
+    durations["Actual"] = durations["Actual"] + elapsed
 
     # Save CAE and FFNN models
-    start = timer()
+    start = time.time_ns()
     decoder_model.save(path_model_decoder)
     ffnn_model.save(path_model_ffnn)
-    elapsed = timer() - start
+    elapsed = (time.time_ns() - start) // 1000000 # in ms
     durations["IO"] = durations["IO"] + elapsed
 
 
@@ -109,7 +109,8 @@ if __name__ == '__main__':
     # import sys
     # path_settings = "C:\\Users\\Serafeim\\Desktop\\AISolve\\CantileverDynamicLinear\\testing_python\\train_cs2py_settings.json"
     # path_results = "C:\\Users\\Serafeim\\Desktop\\AISolve\\CantileverDynamicLinear\\testing_python\\train_py2cs_results.json"
-    # sys.argv = [sys.argv[0]] + [path_settings, path_results]
+    # path_log = "C:\\Users\\Serafeim\\Desktop\\AISolve\\CantileverDynamicLinear\\testing_python\\train_py2cs_log.json"
+    # sys.argv = [sys.argv[0]] + [path_settings, path_results, path_log]
 
     # Actual script
     csharp_interop.call_csharp_script(run_main_script_body)
