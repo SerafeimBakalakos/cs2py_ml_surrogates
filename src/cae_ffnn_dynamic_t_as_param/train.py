@@ -107,11 +107,14 @@ def run_main_script_body(settings: dict, durations: dict):
 if __name__ == '__main__':
     # For testing:
     # import sys
-    # work_directory = "C:\\Users\\Serafeim\\Desktop\\AISolve\\CantileverDynamicLinear\\testing_python"
+    # work_directory = "C:\\Users\\Serafeim\\Desktop\\AISolve\\CantileverDynamicLinear"
     # work_directory = "C:\\Users\\cluster\\Desktop\\Serafeim\\results\\CantileverDynamicLinear"
     # path_settings = work_directory + "\\train_cs2py_settings.json"
     # path_results = work_directory + "\\train_py2cs_results.json"
     # path_log = work_directory + "\\train_py2cs_log.json"
+    # path_settings = work_directory + "\\2024-8-9-15_80c66b64-e061-4154-a81a-23e10e50d7b3_cs2py_settings.json"
+    # path_results = work_directory + "\\2024-8-9-15_80c66b64-e061-4154-a81a-23e10e50d7b3_py2cs_results.json"
+    # path_log = work_directory + "\\2024-8-9-15_80c66b64-e061-4154-a81a-23e10e50d7b3_py2cs_log.json"
     # sys.argv = [sys.argv[0]] + [path_settings, path_results, path_log]
 
     # Actual script
