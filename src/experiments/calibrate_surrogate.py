@@ -40,8 +40,8 @@ def create_ffnn(num_model_params:int, latent_space_dim:int, train_model_params, 
 
 def train_cae(num_dofs:int, latent_space_dim:int, train_solutions):
     # Training properties
-    cae_batch_size = 10
-    cae_num_epochs = 20
+    cae_batch_size = 20
+    cae_num_epochs = 100
     cae_learning_rate = 5E-4
 
     # Network architecture
@@ -92,7 +92,7 @@ def train_cae(num_dofs:int, latent_space_dim:int, train_solutions):
 def train_ffnn(num_model_params:int, latent_space_dim:int, train_model_params, train_solutions, encoder_model):
     # Training properties
     ffnn_batch_size = 20
-    ffnn_num_epochs = 50
+    ffnn_num_epochs = 3000
     ffnn_learning_rate = 1E-4
     ffnn_hidden_size = 64
 
@@ -168,7 +168,7 @@ def test_full_surrogate(decoder_model, ffnn_model, test_model_params, test_solut
 if __name__ == '__main__':
     # Run constants
     save_cae = True
-    load_cae = True
+    load_cae = False
     save_ffnn = True
     load_ffnn = False
 
