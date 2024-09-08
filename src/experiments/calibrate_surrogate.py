@@ -38,38 +38,48 @@ def create_ffnn(num_model_params:int, latent_space_dim:int, train_model_params, 
             ffnn_model.save(path_ffnn, lst_loss_history)
         return (ffnn_model, lst_loss_history)
 
+
 def train_cae(num_dofs:int, latent_space_dim:int, train_solutions):
     # Training properties
-    cae_batch_size = 20
-    cae_num_epochs = 100
-    cae_learning_rate = 5E-4
+    cae_batch_size = 480 # num_timesteps = 60
+    cae_num_epochs = 1500
+    cae_learning_rate = 1E-5
+    cae_keras_shuffle = False
+    cae_kernel_size = 5
+    cae_activation = 'relu'
+    # cae_activation = 'tanh'
 
     # Network architecture
     cae_encoder = tf.keras.Sequential([
-        tf.keras.layers.Conv1D(filters=128, kernel_size=5, strides=1, padding='same'),
-        tf.keras.layers.LeakyReLU(),
-        tf.keras.layers.Conv1D(filters=64, kernel_size=5, strides=1, padding='same'),
-        tf.keras.layers.LeakyReLU(),
-        tf.keras.layers.Conv1D(filters=32, kernel_size=5, strides=1, padding='same'),
-        tf.keras.layers.LeakyReLU(),
-        tf.keras.layers.Conv1D(filters=16, kernel_size=5, strides=1, padding='same'),
-        tf.keras.layers.LeakyReLU(),
+        tf.keras.layers.InputLayer(input_shape=(1, num_dofs)),
+        # tf.keras.layers.Conv1D(filters=4096, kernel_size=cae_kernel_size, strides=1, padding='same'),
+        # provide_activation_func(cae_activation),
+        tf.keras.layers.Conv1D(filters=128, kernel_size=cae_kernel_size, strides=1, padding='same'),
+        provide_activation_func(cae_activation),
+        tf.keras.layers.Conv1D(filters=64, kernel_size=cae_kernel_size, strides=1, padding='same'),
+        provide_activation_func(cae_activation),
+        tf.keras.layers.Conv1D(filters=32, kernel_size=cae_kernel_size, strides=1, padding='same'),
+        provide_activation_func(cae_activation),
+        tf.keras.layers.Conv1D(filters=16, kernel_size=cae_kernel_size, strides=1, padding='same'),
+        provide_activation_func(cae_activation),
         tf.keras.layers.Flatten(),
         tf.keras.layers.Dense(latent_space_dim)
     ])
 
     cae_decoder = tf.keras.Sequential([
         tf.keras.layers.InputLayer(input_shape=latent_space_dim),
-        tf.keras.layers.Dense(32),
-        tf.keras.layers.LeakyReLU(),
-        tf.keras.layers.Reshape(target_shape=(1, 32)),
-        tf.keras.layers.Conv1DTranspose(filters=32, kernel_size=5, strides=1, padding='same'),
-        tf.keras.layers.LeakyReLU(),
-        tf.keras.layers.Conv1DTranspose(filters=64, kernel_size=5, strides=1, padding='same'),
-        tf.keras.layers.LeakyReLU(),
-        tf.keras.layers.Conv1DTranspose(filters=128, kernel_size=5, strides=1, padding='same'),
-        tf.keras.layers.LeakyReLU(),
-        tf.keras.layers.Conv1DTranspose(filters=num_dofs, kernel_size=5, strides=1, padding='same')
+        tf.keras.layers.Dense(16),
+        tf.keras.layers.Reshape(target_shape=(1, 16)),
+        tf.keras.layers.Conv1DTranspose(filters=32, kernel_size=cae_kernel_size, strides=1, padding='same'),
+        provide_activation_func(cae_activation),
+        tf.keras.layers.Conv1DTranspose(filters=64, kernel_size=cae_kernel_size, strides=1, padding='same'),
+        provide_activation_func(cae_activation),
+        tf.keras.layers.Conv1DTranspose(filters=128, kernel_size=cae_kernel_size, strides=1, padding='same'),
+        provide_activation_func(cae_activation),
+        # tf.keras.layers.Conv1DTranspose(filters=4096, kernel_size=cae_kernel_size, strides=1, padding='same'),
+        # provide_activation_func(cae_activation),
+        tf.keras.layers.Conv1DTranspose(filters=num_dofs, kernel_size=cae_kernel_size, strides=1, padding='same'),
+        provide_activation_func(cae_activation)
     ])
 
     # Compile
@@ -82,35 +92,36 @@ def train_cae(num_dofs:int, latent_space_dim:int, train_solutions):
 
     # Fit
     print("\nTraining CAE")
-    history = cae_model.fit(train_solutions, train_solutions, batch_size=cae_batch_size, epochs=cae_num_epochs, shuffle=True)
+    history = cae_model.fit(train_solutions, train_solutions, batch_size=cae_batch_size, epochs=cae_num_epochs, shuffle=cae_keras_shuffle)
     # cae_model.summary()
     print("_________________________________________________________________")
     return (cae_encoder, cae_decoder, history.history['loss'])
 
 
-
 def train_ffnn(num_model_params:int, latent_space_dim:int, train_model_params, train_solutions, encoder_model):
     # Training properties
     ffnn_batch_size = 20
-    ffnn_num_epochs = 3000
-    ffnn_learning_rate = 1E-4
+    ffnn_num_epochs = 5000
+    ffnn_learning_rate = 1E-3
     ffnn_hidden_size = 64
+    ffnn_activation = 'relu'
+    # ffnn_activation = 'tanh'
 
     # Architecture
     ffnn_model = tf.keras.Sequential([
         tf.keras.layers.InputLayer(input_shape=num_model_params),
         tf.keras.layers.Dense(ffnn_hidden_size),
-        tf.keras.layers.LeakyReLU(),
+        provide_activation_func(ffnn_activation),
         tf.keras.layers.Dense(ffnn_hidden_size),
-        tf.keras.layers.LeakyReLU(),
+        provide_activation_func(ffnn_activation),
         tf.keras.layers.Dense(ffnn_hidden_size),
-        tf.keras.layers.LeakyReLU(),
+        provide_activation_func(ffnn_activation),
         tf.keras.layers.Dense(ffnn_hidden_size),
-        tf.keras.layers.LeakyReLU(),
+        provide_activation_func(ffnn_activation),
         tf.keras.layers.Dense(ffnn_hidden_size),
-        tf.keras.layers.LeakyReLU(),
+        provide_activation_func(ffnn_activation),
         tf.keras.layers.Dense(ffnn_hidden_size),
-        tf.keras.layers.LeakyReLU(),
+        provide_activation_func(ffnn_activation),
         tf.keras.layers.Dense(latent_space_dim)
     ])
 
@@ -125,6 +136,16 @@ def train_ffnn(num_model_params:int, latent_space_dim:int, train_model_params, t
     print("_________________________________________________________________")
 
     return (ffnn_model, history.history['loss'])
+
+
+def provide_activation_func(func_name:str):
+    if func_name == 'relu':
+        print("using relu")
+        return tf.keras.layers.LeakyReLU()
+    elif func_name == 'tanh':
+        return tf.keras.layers.Activation(tf.keras.activations.tanh)
+    else:
+        raise Exception('Invalid activation')
 
 
 def read_datasets(directory:str):
@@ -147,6 +168,53 @@ def read_datasets(directory:str):
     assert train_solutions.shape[2] == test_solutions.shape[2]
 
     return (train_model_params, train_solutions, test_model_params, test_solutions)
+
+
+def test_cae(encoder_model, decoder_model, test_solutions):
+    num_test_samples = test_solutions.shape[0]
+    solution_predictions = decoder_model(encoder_model(test_solutions))
+    solution_predictions = np.squeeze(solution_predictions)
+    test_solutions = np.squeeze(test_solutions)
+    mean_error = 0
+    min_error = 1E10
+    max_error = -1E10
+    for s in range(num_test_samples):
+        expected = np.squeeze(test_solutions[s:s + 1, :])
+        predicted = np.squeeze(solution_predictions[s:s + 1, :])
+        error = calc_vector_error_normwise(expected, predicted)
+        #error = calc_vector_error_entrywise_mean_absolute(expected, predicted)
+        #error = calc_vector_error_entrywise_max_absolute(expected, predicted)
+        mean_error += error
+        min_error = min(min_error, error)
+        max_error = max(max_error, error)
+    mean_error /= num_test_samples
+    return (mean_error, min_error, max_error)
+
+def calc_vector_error_entrywise_max_absolute(expected, predicted):
+    num_entries = expected.shape[0]
+    max_error = -1;
+    current_error = -1;
+    for i in range(num_entries):
+        if expected[i] != 0:
+            current_error = abs((expected[i] - predicted[i]) / expected[i])
+        else:
+            current_error = abs(expected[i] - predicted[i])
+        max_error = max(max_error, current_error)
+    return max_error
+
+def calc_vector_error_entrywise_mean_absolute(expected, predicted):
+    num_entries = expected.shape[0]
+    total_error = 0;
+    for i in range(num_entries):
+        if expected[i] != 0:
+            total_error += abs((expected[i] - predicted[i]) / expected[i])
+        else:
+            total_error += abs(expected[i] - predicted[i])
+    return total_error / num_entries
+
+
+def calc_vector_error_normwise(expected, predicted):
+    return np.linalg.norm(expected - predicted) / np.linalg.norm(expected)
 
 
 def test_full_surrogate(decoder_model, ffnn_model, test_model_params, test_solutions):
@@ -176,8 +244,8 @@ if __name__ == '__main__':
     tf.keras.utils.set_random_seed(23)
 
     # Read datasets from disc
-    directory = "C:\\Users\\Serafeim\\Desktop\\AISolve\\CantileverDynamicLinear\\python_experimenting"
-    # directory = "C:\\Users\\cluster\\Desktop\\Serafeim\\results\\CantileverDynamicLinear\\python_experimenting"
+    # directory = "C:\\Users\\Serafeim\\Desktop\\AISolve\\CantileverDynamicLinear\\python_experimenting"
+    directory = "C:\\Users\\cluster\\Desktop\\Serafeim\\results\\CantileverDynamicLinear\\python_experimenting"
     (train_model_params, train_solutions, test_model_params, test_solutions) = read_datasets(directory)
     num_dofs = train_solutions.shape[2]
     num_model_params = train_model_params.shape[1]
@@ -188,7 +256,13 @@ if __name__ == '__main__':
                 encoder_model, load_ffnn, save_ffnn, directory)
 
     # Test surrogate
-    mean_error = test_full_surrogate(decoder_model, ffnn_model, test_model_params, test_solutions)
+    print('_________________________________________________________________')
+    print('Testing models')
+    mean_error_cae = 0
+    (mean_error_cae, min_error_cae, max_error_cae) = test_cae(encoder_model, decoder_model, test_solutions)
+    mean_error_surrogate = 0
+    mean_error_surrogate = test_full_surrogate(decoder_model, ffnn_model, test_model_params, test_solutions)
+
 
     # Print results
     print('_________________________________________________________________')
@@ -196,5 +270,8 @@ if __name__ == '__main__':
         print("CAE loss function: at start = " + str(loss_cae[0]) + " - at end = " + str(loss_cae[-1]))
     if len(loss_ffnn) > 0:
         print("FFNN loss function: at start = " + str(loss_ffnn[0]) + " - at end = " + str(loss_ffnn[-1]))
-    print('CAE-FFNN surrogate mean error on test seat (|expected - predicted| / |expected| = ' + str(mean_error))
+    if mean_error_cae > 0:
+        print('CAE error on test set: mean = ' + str(mean_error_cae) + ' - min = ' + str(min_error_cae) + ' - max = ' + str(max_error_cae))
+    if mean_error_surrogate > 0:
+        print('CAE-FFNN surrogate mean error on test set (|expected - predicted| / |expected| = ' + str(mean_error_surrogate))
 
