@@ -1,10 +1,11 @@
+import keras.optimizers.schedules
 import numpy as np
 import tensorflow as tf
 
 from src.my_utilities import arrayIO
 
 # Returns a tuple (encoder_model, decoder_model, lst_loss_history) of keras models and the history of loss function evaluations per epoch
-def create_cae(num_dofs:int, latent_space_dim:int, train_solutions, load_cae:bool, save_cae:bool, directory:str):
+def create_cae(num_train_samples:int, num_dofs:int, latent_space_dim:int, train_solutions, load_cae:bool, save_cae:bool, directory:str):
     path_encoder = directory + "\\encoder_model.keras"
     path_decoder = directory + "\\decoder_model.keras"
 
@@ -15,7 +16,8 @@ def create_cae(num_dofs:int, latent_space_dim:int, train_solutions, load_cae:boo
         lst_loss_history = []
         return (encoder_model, decoder_model, lst_loss_history)
     else:
-        (encoder_model, decoder_model, lst_loss_history) = train_cae(num_dofs, latent_space_dim, train_solutions)
+        (encoder_model, decoder_model, lst_loss_history) = train_cae(
+            num_train_samples, num_dofs, latent_space_dim, train_solutions)
         if (save_cae):
             encoder_model.save(path_encoder)
             decoder_model.save(path_decoder)
@@ -23,8 +25,8 @@ def create_cae(num_dofs:int, latent_space_dim:int, train_solutions, load_cae:boo
 
 
 # Returns the tuple (ffnn_model, lst_loss_history) of keras models and the history of loss function evaluations per epoch
-def create_ffnn(num_model_params:int, latent_space_dim:int, train_model_params, train_solutions, encoder_model,
-                load_ffnn:bool, save_ffnn:bool, directory:str):
+def create_ffnn(num_train_samples:int, num_model_params:int, latent_space_dim:int, train_model_params, train_solutions,
+                encoder_model,load_ffnn:bool, save_ffnn:bool, directory:str):
     path_ffnn = directory + "\\ffnn_model.keras"
 
     if (load_ffnn):
@@ -33,21 +35,26 @@ def create_ffnn(num_model_params:int, latent_space_dim:int, train_model_params, 
         lst_loss_history = []
         return (ffnn_model, lst_loss_history)
     else:
-        (ffnn_model, lst_loss_history) = train_ffnn(num_model_params, latent_space_dim, train_model_params, train_solutions, encoder_model)
+        (ffnn_model, lst_loss_history) = train_ffnn(
+            num_train_samples, num_model_params, latent_space_dim, train_model_params, train_solutions, encoder_model)
         if (save_ffnn):
             ffnn_model.save(path_ffnn, lst_loss_history)
         return (ffnn_model, lst_loss_history)
 
 
-def train_cae(num_dofs:int, latent_space_dim:int, train_solutions):
+def train_cae(num_train_samples:int, num_dofs:int, latent_space_dim:int, train_solutions):
     # Training properties
-    cae_batch_size = 480 # num_timesteps = 60
-    cae_num_epochs = 1500
-    cae_learning_rate = 1E-5
-    cae_keras_shuffle = False
+    cae_batch_size = 20 # num_timesteps = 60
+    cae_num_epochs = 500
+    cae_keras_shuffle = True
     cae_kernel_size = 5
     cae_activation = 'relu'
     # cae_activation = 'tanh'
+
+    # cae_learning_rate = 1E-4
+    cae_learning_rate = provide_learning_rate_schedule(
+        initial_learning_rate=1E-3, final_learning_rate=1E-4, staircase=True,
+        num_epochs=cae_num_epochs, batch_size=cae_batch_size, num_training_samples=num_train_samples)
 
     # Network architecture
     cae_encoder = tf.keras.Sequential([
@@ -98,14 +105,19 @@ def train_cae(num_dofs:int, latent_space_dim:int, train_solutions):
     return (cae_encoder, cae_decoder, history.history['loss'])
 
 
-def train_ffnn(num_model_params:int, latent_space_dim:int, train_model_params, train_solutions, encoder_model):
+def train_ffnn(num_train_samples:int, num_model_params:int, latent_space_dim:int, train_model_params, train_solutions, encoder_model):
     # Training properties
     ffnn_batch_size = 20
     ffnn_num_epochs = 5000
-    ffnn_learning_rate = 1E-3
     ffnn_hidden_size = 64
+    ffnn_shuffle = False
     ffnn_activation = 'relu'
-    # ffnn_activation = 'tanh'
+    #ffnn_activation = 'tanh'
+
+    # Learning rate
+    ffnn_learning_rate = provide_learning_rate_schedule(
+        initial_learning_rate=1E-3, final_learning_rate=1E-5, staircase=True,
+        num_epochs=ffnn_num_epochs, batch_size=ffnn_batch_size, num_training_samples=num_train_samples)
 
     # Architecture
     ffnn_model = tf.keras.Sequential([
@@ -132,7 +144,7 @@ def train_ffnn(num_model_params:int, latent_space_dim:int, train_model_params, t
     # Fit
     print("\nTraining FFNN")
     history = ffnn_model.fit(train_model_params, ffnn_output,
-                             batch_size=ffnn_batch_size, epochs=ffnn_num_epochs, shuffle=True)
+                             batch_size=ffnn_batch_size, epochs=ffnn_num_epochs, shuffle=ffnn_shuffle)
     print("_________________________________________________________________")
 
     return (ffnn_model, history.history['loss'])
@@ -140,13 +152,26 @@ def train_ffnn(num_model_params:int, latent_space_dim:int, train_model_params, t
 
 def provide_activation_func(func_name:str):
     if func_name == 'relu':
-        print("using relu")
+        #print("using relu")
         return tf.keras.layers.LeakyReLU()
     elif func_name == 'tanh':
         return tf.keras.layers.Activation(tf.keras.activations.tanh)
     else:
         raise Exception('Invalid activation')
 
+def provide_learning_rate_schedule(initial_learning_rate:float, final_learning_rate:float, staircase:bool,
+                                    num_epochs:int, batch_size:int, num_training_samples:int):
+    if initial_learning_rate < final_learning_rate:
+        raise Exception('Initial learning rate must not be less than the final one')
+    elif initial_learning_rate == final_learning_rate:
+        return initial_learning_rate
+    else:
+        decay_rate = (final_learning_rate / initial_learning_rate) ** (1 / num_epochs)
+        steps_per_epoch = int(num_training_samples / batch_size)
+        lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
+            initial_learning_rate=initial_learning_rate, decay_steps=steps_per_epoch,
+            decay_rate=decay_rate, staircase=staircase)
+        return lr_schedule
 
 def read_datasets(directory:str):
     path_train_parameters = directory + "\\train_model_params.npy"
@@ -249,10 +274,13 @@ if __name__ == '__main__':
     (train_model_params, train_solutions, test_model_params, test_solutions) = read_datasets(directory)
     num_dofs = train_solutions.shape[2]
     num_model_params = train_model_params.shape[1]
+    num_train_samples = train_solutions.shape[0]
+    if (train_model_params.shape[0] !=num_train_samples):
+        raise Exception("The number of training samples must be the same in the model parameters and the solutions datasets")
 
     # Train (or read from disc) the networks
-    (encoder_model, decoder_model, loss_cae) = create_cae(num_dofs, latent_space_dim, train_solutions, load_cae, save_cae, directory)
-    (ffnn_model, loss_ffnn) = create_ffnn(num_model_params, latent_space_dim, train_model_params, train_solutions,
+    (encoder_model, decoder_model, loss_cae) = create_cae(num_train_samples, num_dofs, latent_space_dim, train_solutions, load_cae, save_cae, directory)
+    (ffnn_model, loss_ffnn) = create_ffnn(num_train_samples, num_model_params, latent_space_dim, train_model_params, train_solutions,
                 encoder_model, load_ffnn, save_ffnn, directory)
 
     # Test surrogate
