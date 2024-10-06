@@ -11,7 +11,13 @@ def train_cae(model_architecture, encoder_model, decoder_model, solution_vectors
     num_dofs = model_architecture["NumDofs"]
     cae_batch_size = model_architecture["CaeBatchSize"]
     cae_num_epochs = model_architecture["CaeNumEpochs"]
-    cae_learning_rate = model_architecture["CaeLearningRate"]
+    cae_learning_rate_start = model_architecture["CaeLearningRateStart"]
+    cae_learning_rate_end = model_architecture["CaeLearningRateEnd"]
+
+    # Learning rate schedule
+    cae_learning_rate = provide_learning_rate_schedule(
+        initial_learning_rate=cae_learning_rate_start, final_learning_rate=cae_learning_rate_end, staircase=True,
+        num_epochs=cae_num_epochs, batch_size=cae_batch_size, num_training_samples=solution_vectors.shape[0])
 
     # Compile
     cae_input = tf.keras.Input(shape=(1, num_dofs))
@@ -30,7 +36,13 @@ def train_ffnn(model_architecture, ffnn_model, encoder_model, model_params, solu
     # Read the relevant properties
     ffnn_batch_size = model_architecture["FfnnBatchSize"]
     ffnn_num_epochs = model_architecture["FfnnNumEpochs"]
-    ffnn_learning_rate = model_architecture["FfnnLearningRate"]
+    ffnn_learning_rate_start = model_architecture["FfnnLearningRateStart"]
+    ffnn_learning_rate_end = model_architecture["FfnnLearningRateEnd"]
+
+    # Learning rate schedule
+    ffnn_learning_rate = provide_learning_rate_schedule(
+        initial_learning_rate=ffnn_learning_rate_start, final_learning_rate=ffnn_learning_rate_end, staircase=True,
+        num_epochs=ffnn_num_epochs, batch_size=ffnn_batch_size, num_training_samples=solution_vectors.shape[0])
 
     # Compile
     ffnn_model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=ffnn_learning_rate), loss='mse')
@@ -46,6 +58,19 @@ def print_to_file(filepath: str, msg: str):
     with open(filepath, "a'") as file:
         file.write(msg)
 
+def provide_learning_rate_schedule(initial_learning_rate:float, final_learning_rate:float, staircase:bool,
+                                    num_epochs:int, batch_size:int, num_training_samples:int):
+    if initial_learning_rate < final_learning_rate:
+        raise Exception('Initial learning rate must not be less than the final one')
+    elif initial_learning_rate == final_learning_rate:
+        return initial_learning_rate
+    else:
+        decay_rate = (final_learning_rate / initial_learning_rate) ** (1 / num_epochs)
+        steps_per_epoch = int(num_training_samples / batch_size)
+        lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
+            initial_learning_rate=initial_learning_rate, decay_steps=steps_per_epoch,
+            decay_rate=decay_rate, staircase=staircase)
+        return lr_schedule
 
 def run_main_script_body(settings: dict, durations: dict):
     # Read and apply TensorFlow settings
