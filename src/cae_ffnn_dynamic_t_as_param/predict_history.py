@@ -27,27 +27,27 @@ def run_main_script_body(settings: dict, durations: dict):
     start = time.time_ns()
     decoder_model = tf.keras.models.load_model(path_model_decoder)
     ffnn_model = tf.keras.models.load_model(path_model_ffnn)
-    x = arrayIO.load_row_matrix(path_model_params, np_dtype)
+    x_history = arrayIO.load_array2D(path_model_params, np_dtype)
     # region debug
-    #debug_dir = "C:\\Users\\cluster\\Desktop\\Serafeim\\results\\CantileverDynamicLinear\\"
-    #write_array_to_file(debug_dir + "\\input_after_normalization_python.txt", x)
+    # debug_dir = "C:\\Users\\cluster\\Desktop\\Serafeim\\results\\CantileverDynamicLinear\\"
+    # write_array_to_file(debug_dir + "\\input_after_normalization_python.txt", x)
     # endregion debug
     elapsed = (time.time_ns() - start) // 1000000 # in ms
     durations["IO"] = durations["IO"] + elapsed
 
     # Use model to predict
     start = time.time_ns()
-    temp = ffnn_model.predict(x)
-    y = decoder_model.predict(temp)
+    temp_history = ffnn_model.predict(x_history)
+    y_history = decoder_model.predict(temp_history)
     # region debug
-    #write_array_to_file(debug_dir + "\\output_before_denormalization_python.txt", y)
+    # write_array_to_file(debug_dir + "\\output_before_denormalization_python.txt", y)
     # endregion debug
     elapsed = (time.time_ns() - start) // 1000000 # in ms
     durations["Actual"] = durations["Actual"] + elapsed
 
     # Save output array
     start = time.time_ns()
-    arrayIO.squeeze_and_save_tensor(y, path_solution_vector)
+    arrayIO.squeeze_and_save_tensor(y_history, path_solution_vector)
     elapsed = (time.time_ns() - start) // 1000000 # in ms
     durations["IO"] = durations["IO"] + elapsed
 
@@ -61,16 +61,16 @@ def write_array_to_file(file:str, np_array):
 
 if __name__ == '__main__':
     # For testing:
-    import sys
+    #import sys
     # work_directory = "C:\\Users\\Serafeim\\Desktop\\AISolve\\CantileverDynamicLinear\\testing_python"
-    # work_directory = "C:\\Users\\cluster\\Desktop\\Serafeim\\results\\CantileverDynamicLinear"
-    # path_settings = work_directory + "\\predict_cs2py_settings.json"
-    # path_results = work_directory + "\\predict_py2cs_results.json"
-    # path_log = work_directory + "\\predict_py2cs_log.json"
+    #work_directory = "C:\\Users\\cluster\\Desktop\\Serafeim\\results\\CantileverDynamicLinear"
+    #path_settings = work_directory + "\\predict_cs2py_settings.json"
+    #path_results = work_directory + "\\predict_py2cs_results.json"
+    #path_log = work_directory + "\\predict_py2cs_log.json"
     # path_settings = work_directory + "\\2024-8-6-122_d328438b-6f5c-47c4-ad0b-58b296cd8011_cs2py_settings.json"
     # path_results = work_directory + "\\2024-8-6-122_d328438b-6f5c-47c4-ad0b-58b296cd8011_py2cs_results.json"
     # path_log = work_directory + "\\2024-8-6-122_d328438b-6f5c-47c4-ad0b-58b296cd8011_py2cs_log.json"
-    # sys.argv = [sys.argv[0]] + [path_settings, path_results, path_log]
+    #sys.argv = [sys.argv[0]] + [path_settings, path_results, path_log]
 
     # Actual script
     csharp_interop.call_csharp_script(run_main_script_body)

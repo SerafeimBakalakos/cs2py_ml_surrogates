@@ -6,8 +6,8 @@ from src.my_utilities import arrayIO
 
 # Returns a tuple (encoder_model, decoder_model, lst_loss_history) of keras models and the history of loss function evaluations per epoch
 def create_cae(num_train_samples:int, num_dofs:int, latent_space_dim:int, train_solutions, load_cae:bool, save_cae:bool, directory:str):
-    path_encoder = directory + "\\encoder_model.keras"
-    path_decoder = directory + "\\decoder_model.keras"
+    path_encoder = directory + "\\model_encoder_43.keras"
+    path_decoder = directory + "\\model_decoder_43.keras"
 
     if (load_cae):
         print("\nReading CAE models from disc")
@@ -27,7 +27,7 @@ def create_cae(num_train_samples:int, num_dofs:int, latent_space_dim:int, train_
 # Returns the tuple (ffnn_model, lst_loss_history) of keras models and the history of loss function evaluations per epoch
 def create_ffnn(num_train_samples:int, num_model_params:int, latent_space_dim:int, train_model_params, train_solutions,
                 encoder_model,load_ffnn:bool, save_ffnn:bool, directory:str):
-    path_ffnn = directory + "\\ffnn_model.keras"
+    path_ffnn = directory + "\\model_ffnn_43.keras"
 
     if (load_ffnn):
         print("\nReading FFNN model from disc")
@@ -45,7 +45,7 @@ def create_ffnn(num_train_samples:int, num_model_params:int, latent_space_dim:in
 def train_cae(num_train_samples:int, num_dofs:int, latent_space_dim:int, train_solutions):
     # Training properties
     cae_batch_size = 20 # num_timesteps = 60
-    cae_num_epochs = 500
+    cae_num_epochs = 250
     cae_keras_shuffle = True
     cae_kernel_size = 5
     cae_activation = 'relu'
@@ -110,7 +110,7 @@ def train_ffnn(num_train_samples:int, num_model_params:int, latent_space_dim:int
     ffnn_batch_size = 20
     ffnn_num_epochs = 5000
     ffnn_hidden_size = 64
-    ffnn_shuffle = False
+    ffnn_shuffle = True
     ffnn_activation = 'relu'
     #ffnn_activation = 'tanh'
 
