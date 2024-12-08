@@ -1,0 +1,77 @@
+import time
+
+import numpy as np
+import tensorflow as tf
+
+from src.my_utilities import arrayIO, csharp_interop
+
+
+def run_main_script_body(settings: dict, durations: dict):
+    # Read and apply TensorFlow settings
+    start = time.time_ns()
+    path_model_params = settings["ModelParamsPath"]
+    path_solution_vector = settings["SolutionVectorPath"]
+    path_model_decoder = settings["ModelDecoderPath"]
+    path_model_ffnn = settings["ModelFfnnPath"]
+
+    use_float64 = settings["Float64"]
+    if use_float64:
+        tf.keras.backend.set_floatx('float64')
+    np_dtype = np.double if use_float64 is True else np.single
+
+    elapsed = (time.time_ns() - start) // 1000000 # in ms
+    durations["Setup"] = durations["Setup"] + elapsed
+
+
+    # Load model and input array
+    start = time.time_ns()
+    decoder_model = tf.keras.models.load_model(path_model_decoder)
+    ffnn_model = tf.keras.models.load_model(path_model_ffnn)
+    x_history = arrayIO.load_array2D(path_model_params, np_dtype)
+    # region debug
+    # debug_dir = "C:\\Users\\cluster\\Desktop\\Serafeim\\results\\CantileverDynamicLinear\\"
+    # write_array_to_file(debug_dir + "\\input_after_normalization_python.txt", x)
+    # endregion debug
+    elapsed = (time.time_ns() - start) // 1000000 # in ms
+    durations["IO"] = durations["IO"] + elapsed
+
+    # Use model to predict
+    start = time.time_ns()
+    temp_history = ffnn_model.predict(x_history)
+    y_history = decoder_model.predict(temp_history)
+    # region debug
+    # write_array_to_file(debug_dir + "\\output_before_denormalization_python.txt", y)
+    # endregion debug
+    elapsed = (time.time_ns() - start) // 1000000 # in ms
+    durations["Actual"] = durations["Actual"] + elapsed
+
+    # Save output array
+    start = time.time_ns()
+    arrayIO.squeeze_and_save_tensor(y_history, path_solution_vector)
+    elapsed = (time.time_ns() - start) // 1000000 # in ms
+    durations["IO"] = durations["IO"] + elapsed
+
+#region debug
+def write_array_to_file(file:str, np_array):
+    with open(file, "w") as txt_file:
+        for num in np.nditer(np_array):
+            txt_file.write(str(num))
+            txt_file.write("\n")
+#endregion
+
+if __name__ == '__main__':
+    # For testing:
+    #import sys
+    # work_directory = "C:\\Users\\Serafeim\\Desktop\\AISolve\\CantileverDynamicLinear\\testing_python"
+    #work_directory = "C:\\Users\\cluster\\Desktop\\Serafeim\\results\\CantileverDynamicLinear"
+    #path_settings = work_directory + "\\predict_cs2py_settings.json"
+    #path_results = work_directory + "\\predict_py2cs_results.json"
+    #path_log = work_directory + "\\predict_py2cs_log.json"
+    # path_settings = work_directory + "\\2024-8-6-122_d328438b-6f5c-47c4-ad0b-58b296cd8011_cs2py_settings.json"
+    # path_results = work_directory + "\\2024-8-6-122_d328438b-6f5c-47c4-ad0b-58b296cd8011_py2cs_results.json"
+    # path_log = work_directory + "\\2024-8-6-122_d328438b-6f5c-47c4-ad0b-58b296cd8011_py2cs_log.json"
+    #sys.argv = [sys.argv[0]] + [path_settings, path_results, path_log]
+
+    # Actual script
+    csharp_interop.call_csharp_script(run_main_script_body)
+
