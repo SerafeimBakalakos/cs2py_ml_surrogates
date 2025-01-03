@@ -27,7 +27,7 @@ def train_ffnn(num_train_samples:int, num_model_params:int, num_pod_coeffs:int, 
     # Training properties
     ffnn_batch_size = 20
     ffnn_num_epochs = 5000
-    ffnn_hidden_size = 64
+    ffnn_hidden_size = 16
     ffnn_shuffle = True
     ffnn_activation = 'relu'
     #ffnn_activation = 'tanh'
@@ -40,18 +40,20 @@ def train_ffnn(num_train_samples:int, num_model_params:int, num_pod_coeffs:int, 
     # Architecture
     ffnn_model = tf.keras.Sequential([
         tf.keras.layers.InputLayer(input_shape=num_model_params),
+
         tf.keras.layers.Dense(ffnn_hidden_size),
         provide_activation_func(ffnn_activation),
         tf.keras.layers.Dense(ffnn_hidden_size),
         provide_activation_func(ffnn_activation),
         tf.keras.layers.Dense(ffnn_hidden_size),
         provide_activation_func(ffnn_activation),
-        tf.keras.layers.Dense(ffnn_hidden_size),
-        provide_activation_func(ffnn_activation),
-        tf.keras.layers.Dense(ffnn_hidden_size),
-        provide_activation_func(ffnn_activation),
-        tf.keras.layers.Dense(ffnn_hidden_size),
-        provide_activation_func(ffnn_activation),
+        #tf.keras.layers.Dense(ffnn_hidden_size),
+        #provide_activation_func(ffnn_activation),
+        #tf.keras.layers.Dense(ffnn_hidden_size),
+        #provide_activation_func(ffnn_activation),
+        #tf.keras.layers.Dense(ffnn_hidden_size),
+        #provide_activation_func(ffnn_activation),
+
         tf.keras.layers.Dense(num_pod_coeffs)
     ])
 
@@ -146,6 +148,9 @@ def test_ffnn(ffnn_model, test_model_params, test_pod_coeffs):
     mean_error = 0
     for s in range(num_test_samples):
         expected = test_pod_coeffs[s:s+1, :]
+        #if expected[0] == 0:
+        #    print("Zero at " + str(s))
+
         predicted = coeff_predictions[s:s+1, :]
         mean_error += calc_vector_error_normwise(expected, predicted)
         #mean_error += calc_vector_error_entrywise_max_absolute(expected, predicted)
@@ -163,8 +168,8 @@ if __name__ == '__main__':
 
 
     # Read datasets from disc
-    directory = "C:\\Users\\Serafeim\\Desktop\\AISolve\\CantileverDynamicLinear\\python_experimenting"
-    #directory = "C:\\Users\\cluster\\Desktop\\Serafeim\\results\\CantileverDynamicLinear\\python_experimenting"
+    #directory = "C:\\Users\\Serafeim\\Desktop\\AISolve\\CantileverDynamicLinear\\python_experimenting"
+    directory = "C:\\Users\\cluster\\Desktop\\Serafeim\\results\\CantileverDynamicLinear\\python_experimenting"
     (train_model_params, train_pod_coeffs, test_model_params, test_pod_coeffs) = read_datasets(directory)
     num_pod_coeffs = train_pod_coeffs.shape[1]
     num_model_params = train_model_params.shape[1]
@@ -188,4 +193,3 @@ if __name__ == '__main__':
         print("FFNN loss function: at start = " + str(loss_ffnn[0]) + " - at end = " + str(loss_ffnn[-1]))
     if mean_error_ffnn > 0:
         print('FFNN mean error on test set (|expected - predicted| / |expected| = ' + str(mean_error_ffnn))
-
