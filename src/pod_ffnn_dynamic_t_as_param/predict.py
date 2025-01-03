@@ -10,8 +10,7 @@ def run_main_script_body(settings: dict, durations: dict):
     # Read and apply TensorFlow settings
     start = time.time_ns()
     path_model_params = settings["ModelParamsPath"]
-    path_solution_vector = settings["SolutionVectorPath"]
-    path_model_decoder = settings["ModelDecoderPath"]
+    path_pod_coeffs = settings["PodCoeffsPath"]
     path_model_ffnn = settings["ModelFfnnPath"]
 
     use_float64 = settings["Float64"]
@@ -25,7 +24,6 @@ def run_main_script_body(settings: dict, durations: dict):
 
     # Load model and input array
     start = time.time_ns()
-    decoder_model = tf.keras.models.load_model(path_model_decoder)
     ffnn_model = tf.keras.models.load_model(path_model_ffnn)
     x = arrayIO.load_row_matrix(path_model_params, np_dtype)
     # region debug
@@ -37,8 +35,7 @@ def run_main_script_body(settings: dict, durations: dict):
 
     # Use model to predict
     start = time.time_ns()
-    temp = ffnn_model.predict(x)
-    y = decoder_model.predict(temp)
+    y = ffnn_model.predict(x)
     # region debug
     #write_array_to_file(debug_dir + "\\output_before_denormalization_python.txt", y)
     # endregion debug
@@ -47,7 +44,7 @@ def run_main_script_body(settings: dict, durations: dict):
 
     # Save output array
     start = time.time_ns()
-    arrayIO.squeeze_and_save_tensor(y, path_solution_vector)
+    arrayIO.squeeze_and_save_tensor(y, path_pod_coeffs)
     elapsed = (time.time_ns() - start) // 1000000 # in ms
     durations["IO"] = durations["IO"] + elapsed
 
