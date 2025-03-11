@@ -1,41 +1,46 @@
 import keras.optimizers.schedules
 import numpy as np
 import tensorflow as tf
+from matplotlib import pyplot as plt
 
 from src.my_utilities import arrayIO
 
+loss_is_mse = True
 
 # Returns the tuple (ffnn_model, lst_loss_history) of keras models and the history of loss function evaluations per epoch
 def create_ffnn(num_train_samples:int, num_model_params:int, num_pod_coeffs:int, train_model_params, train_pod_coeffs,
-                load_ffnn:bool, save_ffnn:bool, directory:str):
+                load_ffnn:bool, save_ffnn:bool, directory:str, validation_model_params, validation_pod_coeffs):
     path_ffnn = directory + "\\model_ffnn_43.keras"
 
     if (load_ffnn):
         print("\nReading FFNN model from disc")
         ffnn_model = tf.keras.models.load_model(path_ffnn)
-        lst_loss_history = []
-        return (ffnn_model, lst_loss_history)
+        history = None
+        return (ffnn_model, history)
     else:
-        (ffnn_model, lst_loss_history) = train_ffnn(
-            num_train_samples, num_model_params, num_pod_coeffs, train_model_params, train_pod_coeffs)
+        (ffnn_model, history) = train_ffnn(
+            num_train_samples, num_model_params, num_pod_coeffs, train_model_params, train_pod_coeffs,
+            validation_model_params, validation_pod_coeffs)
         if (save_ffnn):
-            ffnn_model.save(path_ffnn, lst_loss_history)
-        return (ffnn_model, lst_loss_history)
+            ffnn_model.save(path_ffnn, history.history['loss'])
+        return (ffnn_model, history)
 
-
-def train_ffnn(num_train_samples:int, num_model_params:int, num_pod_coeffs:int, train_model_params, train_pod_coeffs):
+def train_ffnn(num_train_samples:int, num_model_params:int, num_pod_coeffs:int, train_model_params, train_pod_coeffs,
+               validation_model_params, validation_pod_coeffs):
     # Training properties
-    ffnn_batch_size = 20
+    ffnn_batch_size = 100
     ffnn_num_epochs = 5000
-    ffnn_hidden_size = 16
+    ffnn_hidden_size = 64
     ffnn_shuffle = True
-    ffnn_activation = 'relu'
-    #ffnn_activation = 'tanh'
+    #ffnn_activation = 'relu'
+    ffnn_activation = 'tanh'
+    ffnn_loss_fun = 'mse' # options 'mse' (default), 'mape'
+    ffnn_lr_decay_epochs = 5000
 
     # Learning rate
     ffnn_learning_rate = provide_learning_rate_schedule(
-        initial_learning_rate=1E-3, final_learning_rate=1E-5, staircase=True,
-        num_epochs=ffnn_num_epochs, batch_size=ffnn_batch_size, num_training_samples=num_train_samples)
+        initial_learning_rate=1E-6, final_learning_rate=1E-8, staircase=True,
+        num_epochs=ffnn_lr_decay_epochs, batch_size=ffnn_batch_size, num_training_samples=num_train_samples)
 
     # Architecture
     ffnn_model = tf.keras.Sequential([
@@ -47,8 +52,12 @@ def train_ffnn(num_train_samples:int, num_model_params:int, num_pod_coeffs:int, 
         provide_activation_func(ffnn_activation),
         tf.keras.layers.Dense(ffnn_hidden_size),
         provide_activation_func(ffnn_activation),
-        #tf.keras.layers.Dense(ffnn_hidden_size),
-        #provide_activation_func(ffnn_activation),
+        tf.keras.layers.Dense(ffnn_hidden_size),
+        provide_activation_func(ffnn_activation),
+        tf.keras.layers.Dense(ffnn_hidden_size),
+        provide_activation_func(ffnn_activation),
+        tf.keras.layers.Dense(ffnn_hidden_size),
+        provide_activation_func(ffnn_activation),
         #tf.keras.layers.Dense(ffnn_hidden_size),
         #provide_activation_func(ffnn_activation),
         #tf.keras.layers.Dense(ffnn_hidden_size),
@@ -58,16 +67,35 @@ def train_ffnn(num_train_samples:int, num_model_params:int, num_pod_coeffs:int, 
     ])
 
     # Compile
-    ffnn_model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=ffnn_learning_rate), loss='mse')
+    ffnn_metrics = []
+    global loss_is_mse
+    if ffnn_loss_fun == 'mse': #is tf.keras.losses.MeanSquaredError:
+        ffnn_metrics = [keras.src.metrics.MeanAbsolutePercentageError()]
+        loss_is_mse = True
+    elif ffnn_loss_fun == 'mape': #is tf.keras.losses.MeanAbsolutePercentageError:
+        ffnn_metrics = [keras.src.metrics.MeanSquaredError()]
+        loss_is_mse = False
+    else:
+        ffnn_metrics = [keras.src.metrics.MeanSquaredError(), keras.src.metrics.MeanAbsolutePercentageError()]
+        loss_is_mse = False
+
+    ffnn_model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=ffnn_learning_rate), loss=ffnn_loss_fun,
+                       metrics=ffnn_metrics)
     ffnn_output = train_pod_coeffs
 
     # Fit
     print("\nTraining FFNN")
-    history = ffnn_model.fit(train_model_params, ffnn_output,
-                             batch_size=ffnn_batch_size, epochs=ffnn_num_epochs, shuffle=ffnn_shuffle)
+    if (validation_model_params is not None) and (validation_pod_coeffs is not None):
+        history = ffnn_model.fit(
+            train_model_params, ffnn_output, batch_size=ffnn_batch_size, epochs=ffnn_num_epochs, shuffle=ffnn_shuffle,
+            validation_data=(validation_model_params, validation_pod_coeffs))
+    else:
+        history = ffnn_model.fit(train_model_params, ffnn_output,
+                                 batch_size=ffnn_batch_size, epochs=ffnn_num_epochs, shuffle=ffnn_shuffle)
     print("_________________________________________________________________")
 
-    return (ffnn_model, history.history['loss'])
+
+    return (ffnn_model, history)
 
 
 def provide_activation_func(func_name:str):
@@ -112,6 +140,31 @@ def read_datasets(directory:str):
 
     return (train_model_params, train_pod_coeffs, test_model_params, test_pod_coeffs)
 
+def read_all_datasets(directory:str):
+    path_train_parameters = directory + "\\train_model_params.npy"
+    path_train_pod_coeffs = directory + "\\train_pod_coeffs.npy"
+    path_test_parameters = directory + "\\test_model_params.npy"
+    path_test_pod_coeffs = directory + "\\test_pod_coeffs.npy"
+    path_validation_parameters = directory + "\\validation_model_params.npy"
+    path_validation_pod_coeffs = directory + "\\validation_pod_coeffs.npy"
+
+    train_model_params = arrayIO.load_array2D(path_train_parameters, np.single)
+    train_pod_coeffs = arrayIO.load_array2D(path_train_pod_coeffs, np.single)
+    test_model_params = arrayIO.load_array2D(path_test_parameters, np.single)
+    test_pod_coeffs = arrayIO.load_array2D(path_test_pod_coeffs, np.single)
+    validation_model_params = arrayIO.load_array2D(path_validation_parameters, np.single)
+    validation_pod_coeffs = arrayIO.load_array2D(path_validation_pod_coeffs, np.single)
+
+    assert train_model_params.shape[0] == train_pod_coeffs.shape[0]
+    assert test_model_params.shape[0] == test_pod_coeffs.shape[0]
+    assert validation_model_params.shape[0] == validation_pod_coeffs.shape[0]
+    assert train_model_params.shape[1] == test_model_params.shape[1]
+    assert train_model_params.shape[1] == validation_model_params.shape[1]
+    assert train_pod_coeffs.shape[1] == test_pod_coeffs.shape[1]
+    assert train_pod_coeffs.shape[1] == validation_pod_coeffs.shape[1]
+
+    return (train_model_params, train_pod_coeffs, test_model_params, test_pod_coeffs, validation_model_params, validation_pod_coeffs)
+
 
 def calc_vector_error_entrywise_max_absolute(expected, predicted):
     num_entries = expected.shape[0]
@@ -146,19 +199,55 @@ def test_ffnn(ffnn_model, test_model_params, test_pod_coeffs):
     #coeff_predictions = np.squeeze(coeff_predictions)
     #test_pod_coeffs = np.squeeze(test_pod_coeffs)
     mean_error = 0
+    num_non_zeros = 0
     for s in range(num_test_samples):
         expected = test_pod_coeffs[s:s+1, :]
         #if expected[0] == 0:
         #    print("Zero at " + str(s))
-
         predicted = coeff_predictions[s:s+1, :]
-        mean_error += calc_vector_error_normwise(expected, predicted)
-        #mean_error += calc_vector_error_entrywise_max_absolute(expected, predicted)
-        #mean_error += calc_vector_error_entrywise_mean_absolute(expected, predicted)
-    mean_error /= num_test_samples
+        err = calc_vector_error_normwise(expected, predicted)
+        #err = calc_vector_error_entrywise_max_absolute(expected, predicted)
+        #err = calc_vector_error_entrywise_mean_absolute(expected, predicted)
+        if expected != 0:
+            mean_error += err
+            num_non_zeros += 1
+    mean_error /= num_non_zeros
+    if num_non_zeros < num_test_samples:
+        print("There are " + str(num_test_samples - num_non_zeros) + " zero samples")
     return mean_error
 
+def plot_error_history(history):
+    if (loss_is_mse):
+        title_1 = 'Mean Squared Error'
+        series_1 = 'loss'
+        title_2 = 'Mean Absolute Percentage Error'
+        series_2 = 'mean_absolute_percentage_error'
+    else:
+        title_1 = 'Mean Absolute Percentage Error'
+        series_1 = 'loss'
+        title_2 = 'Mean Squared Error'
+        series_2 = 'mean_squared_error'
 
+    # Plot error history
+    plt.figure()
+    plt.plot(history.history[series_1])
+    plt.plot(history.history['val_' + series_1], linestyle="dashed")
+    plt.title('FFNN error history')
+    plt.xlabel('epoch')
+    plt.ylabel(title_1)
+    plt.yscale('log')
+    plt.legend(['train set', 'validation set'], loc='upper right')
+    plt.draw()
+
+    plt.figure()
+    plt.plot(history.history[series_2])
+    plt.plot(history.history['val_' + series_2],  linestyle="dashed")
+    plt.title('FFNN error history')
+    plt.xlabel('epoch')
+    plt.ylabel(title_2)
+    plt.yscale('log')
+    plt.legend(['train set', 'validation set'], loc='upper right')
+    plt.show()
 
 if __name__ == '__main__':
     # Run constants
@@ -170,7 +259,8 @@ if __name__ == '__main__':
     # Read datasets from disc
     #directory = "C:\\Users\\Serafeim\\Desktop\\AISolve\\CantileverDynamicLinear\\python_experimenting"
     directory = "C:\\Users\\cluster\\Desktop\\Serafeim\\results\\CantileverDynamicLinear\\python_experimenting"
-    (train_model_params, train_pod_coeffs, test_model_params, test_pod_coeffs) = read_datasets(directory)
+    #(train_model_params, train_pod_coeffs, test_model_params, test_pod_coeffs) = read_datasets(directory)
+    (train_model_params, train_pod_coeffs, test_model_params, test_pod_coeffs, validation_model_params, validation_pod_coeffs) = read_all_datasets(directory)
     num_pod_coeffs = train_pod_coeffs.shape[1]
     num_model_params = train_model_params.shape[1]
     num_train_samples = train_pod_coeffs.shape[0]
@@ -178,18 +268,25 @@ if __name__ == '__main__':
         raise Exception("The number of training samples must be the same in the model parameters and the pod coefficients datasets")
 
     # Train (or read from disc) the networks
-    (ffnn_model, loss_ffnn) = create_ffnn(num_train_samples, num_model_params, num_pod_coeffs, train_model_params,
-                                          train_pod_coeffs, load_ffnn, save_ffnn, directory)
+    (ffnn_model, history_ffnn) = create_ffnn(
+        num_train_samples, num_model_params, num_pod_coeffs, train_model_params, train_pod_coeffs, load_ffnn, save_ffnn,
+        directory, validation_model_params, validation_pod_coeffs)
 
     # Test surrogate
     print('_________________________________________________________________')
     print('Testing model')
-    mean_error_ffnn = 0
-    mean_error_ffnn = test_ffnn(ffnn_model, test_model_params, test_pod_coeffs)
+    mean_test_error_ffnn = test_ffnn(ffnn_model, test_model_params, test_pod_coeffs)
+    mean_train_error_ffnn = test_ffnn(ffnn_model, train_model_params, train_pod_coeffs)
+    mean_val_error_ffnn = test_ffnn(ffnn_model, validation_model_params, validation_pod_coeffs)
 
     # Print results
     print('_________________________________________________________________')
-    if len(loss_ffnn) > 0:
+    if history_ffnn is not None:
+        loss_ffnn = history_ffnn.history['loss']
         print("FFNN loss function: at start = " + str(loss_ffnn[0]) + " - at end = " + str(loss_ffnn[-1]))
-    if mean_error_ffnn > 0:
-        print('FFNN mean error on test set (|expected - predicted| / |expected| = ' + str(mean_error_ffnn))
+
+    print('FFNN mean error on train set (|expected - predicted| / |expected| = ' + str(mean_train_error_ffnn))
+    print('FFNN mean error on test set (|expected - predicted| / |expected| = ' + str(mean_test_error_ffnn))
+    print('FFNN mean error on validation set (|expected - predicted| / |expected| = ' + str(mean_val_error_ffnn))
+
+    plot_error_history(history_ffnn)
